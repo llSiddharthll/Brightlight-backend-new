@@ -1,3 +1,4 @@
+import { v2 as cloudinary } from "cloudinary";
 import { Router } from "express";
 import multer from "multer";
 import News from "../models/News.js";
@@ -5,6 +6,27 @@ import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+// Cloudinary Config
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Helper: Upload Buffer to Cloudinary
+const uploadToCloudinary = (buffer) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: "Brightlight Immigration" },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result.secure_url);
+      }
+    );
+    stream.end(buffer);
+  });
+};
 
 function makeSlug(heading) {
   return heading.trim().toLowerCase().replace(/[^\w\s]/g, "").replace(/\s+/g, "-");
@@ -43,8 +65,7 @@ router.post("/", requireAuth, upload.single("image"), async (req, res) => {
   try {
     const data = { ...req.body };
     if (req.file) {
-      const b64 = req.file.buffer.toString("base64");
-      data.image = `data:${req.file.mimetype};base64,${b64}`;
+      data.image = await uploadToCloudinary(req.file.buffer);
     }
     const item = await News.create(data);
     res.status(201).json(item);
@@ -58,8 +79,7 @@ router.put("/:id", requireAuth, upload.single("image"), async (req, res) => {
   try {
     const data = { ...req.body };
     if (req.file) {
-      const b64 = req.file.buffer.toString("base64");
-      data.image = `data:${req.file.mimetype};base64,${b64}`;
+      data.image = await uploadToCloudinary(req.file.buffer);
     }
     const item = await News.findByIdAndUpdate(req.params.id, data, { new: true, runValidators: true });
     if (!item) return res.status(404).json({ error: "News not found" });
