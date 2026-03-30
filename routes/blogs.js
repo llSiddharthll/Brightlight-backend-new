@@ -10,29 +10,39 @@ function makeSlug(heading) {
   return heading.trim().toLowerCase().replace(/[^\w\s]/g, "").replace(/\s+/g, "-");
 }
 
-// GET /api/blogs — list all
-router.get("/", async (_req, res) => {
+// GET /api/blogs — list all (can exclude content for performance)
+router.get("/", async (req, res) => {
   try {
-    const blogs = await Blog.find().sort({ date: -1 });
+    // Exclude blog_content by default as it can be very large
+    const select = req.query.full === "true" ? "" : "-blog_content";
+    const blogs = await Blog.find().select(select).sort({ date: -1 });
     res.json(blogs);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET /api/blogs/:slug — get by slug (custom_url or generated)
+// GET /api/blogs/:slug — get by slug
 router.get("/:slug", async (req, res) => {
   try {
     const { slug } = req.params;
-    // Try custom_url first, then match generated slug from heading
+    // Direct check for custom_url first
     let blog = await Blog.findOne({ custom_url: slug });
-    if (!blog) {
-      // Find by generated slug from heading
-      const all = await Blog.find();
-      blog = all.find(
-        (b) => makeSlug(b.blog_heading) === slug || b._id.toString() === slug
-      );
+
+    // Try finding by ID if it's a valid hex string
+    if (!blog && slug.match(/^[0-9a-fA-F]{24}$/)) {
+      blog = await Blog.findById(slug);
     }
+
+    if (!blog) {
+      // Find all titles to match by slug (cheap)
+      const allTitles = await Blog.find({}, "blog_heading _id").lean();
+      const target = allTitles.find(b => makeSlug(b.blog_heading) === slug);
+      if (target) {
+        blog = await Blog.findById(target._id);
+      }
+    }
+
     if (!blog) return res.status(404).json({ error: "Blog not found" });
     res.json(blog);
   } catch (err) {

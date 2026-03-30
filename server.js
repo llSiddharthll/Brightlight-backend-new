@@ -12,16 +12,28 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS
+// CORS configuration
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "https://www.brightlightimmigration.ca",
-      "https://brightlightimmigration.ca",
-      process.env.FRONTEND_URL,
-    ].filter(Boolean),
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:8080",
+        "https://www.brightlightimmigration.ca",
+        "https://brightlightimmigration.ca",
+        process.env.FRONTEND_URL,
+      ].filter(Boolean);
+      
+      // Allow requests with no origin (like mobile apps or curl)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.indexOf(origin) !== -1 || origin.includes("localhost")) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
