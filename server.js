@@ -6,6 +6,7 @@ import authRouter from "./routes/auth.js";
 import blogsRouter from "./routes/blogs.js";
 import newsRouter from "./routes/news.js";
 import emailRouter from "./routes/email.js";
+import contactsRouter from "./routes/contacts.js";
 
 dotenv.config();
 
@@ -46,6 +47,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/blogs", blogsRouter);
 app.use("/api/news", newsRouter);
 app.use("/api/email", emailRouter);
+app.use("/api/contacts", contactsRouter);
 
 // Health check
 app.get("/api/health", (_req, res) => res.json({ status: "ok" }));

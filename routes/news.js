@@ -33,10 +33,23 @@ function makeSlug(heading) {
 }
 
 // GET /api/news
-router.get("/", async (_req, res) => {
+router.get("/", async (req, res) => {
   try {
-    const news = await News.find().sort({ date: -1 });
-    res.json(news);
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const total = await News.countDocuments();
+    const news = await News.find()
+      .sort({ date: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    res.json({
+      news,
+      total,
+      pages: Math.ceil(total / limit),
+      currentPage: parseInt(page),
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

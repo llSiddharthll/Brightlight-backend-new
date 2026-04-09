@@ -56,15 +56,28 @@ function makeSlug(heading) {
 // GET /api/blogs — list all (lightweight by default)
 router.get("/", async (req, res) => {
   try {
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
     // Select only metadata by default to prevent 504 timeouts and JSON parse errors
-    // Note: 'image' is now allowed back in by default as it is a small URL, not a huge base64
     let selection = "blog_heading date custom_url tag_1 tag_2 tag_3 alt_tag image";
     
     if (req.query.content === "true") selection += " blog_content";
     if (req.query.full === "true") selection = ""; // all fields
 
-    const blogs = await Blog.find().select(selection).sort({ date: -1 });
-    res.json(blogs);
+    const total = await Blog.countDocuments();
+    const blogs = await Blog.find()
+      .select(selection)
+      .sort({ date: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    res.json({
+      blogs,
+      total,
+      pages: Math.ceil(total / limit),
+      currentPage: parseInt(page),
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
